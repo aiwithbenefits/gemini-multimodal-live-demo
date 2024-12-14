@@ -70,7 +70,67 @@ export function ClientPage() {
       });
       return;
     }
+  useEffect(() => {
+    if (!client) return;
+    const handleChangeLlmModel = (model: string) => {
+      if (client.connected) {
+        client.updateConfig([
+          {
+            service: "llm",
+            options: [
+              {
+                name: "model",
+                value: model,
+              },
+            ],
+          },
+        ]);
+      } else {
+        const config = client.params.config;
+        if (config) {
+          const llmConfig = config.find((c) => c.service === "llm");
+          client.params.config = [
+            ...config,
+            {
+              service: "llm",
+              options: [
+                ...(llmConfig?.options ?? []),
+                {
+                  name: "model",
+                  value: model,
+                },
+              ],
+            },
+          ];
+        } else {
+          client.params.config = [
+            {
+              service: "llm",
+              options: [
+                {
+                  name: "model",
+                  value: model,
+                },
+              ],
+            },
+          ];
+        }
+      }
+    };
+    emitter.on("changeLlmModel", handleChangeLlmModel);
+    return () => {
+      emitter.off("changeLlmModel", handleChangeLlmModel);
+    };
+  }, [client]);
 
+  // Initialize screen share when client is ready
+  useEffect(() => {
+    if (!client) return;
+    client.initDevices().then(async () => {
+      const screens = await client.getAllScreens();
+      client.updateScreen(client.selectedScreen?.deviceId ?? screens[0]?.deviceId);
+    });
+  }, [client]);
     const newClient = new RTVIClient({
       enableCam: false,
       enableMic: conversationType === "voice-to-voice",
